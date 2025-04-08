@@ -118,7 +118,7 @@ impl ProverClientBuilder {
     /// ```
     #[must_use]
     pub fn cuda(&self) -> CudaProverBuilder {
-        CudaProverBuilder
+        CudaProverBuilder::default()
     }
 
     /// Builds a [`NetworkProver`] specifically for proving on the network.
@@ -137,6 +137,6 @@ impl ProverClientBuilder {
     #[cfg(feature = "network")]
     #[must_use]
     pub fn network(&self) -> NetworkProverBuilder {
-        NetworkProverBuilder { private_key: None, rpc_url: None }
+        NetworkProverBuilder { private_key: None, rpc_url: None, tee_signers: None }
     }
 }

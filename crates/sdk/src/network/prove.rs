@@ -15,6 +15,10 @@ use crate::{
 
 use super::proto::network::FulfillmentStrategy;
 
+use std::future::Future;
+use std::future::IntoFuture;
+use std::pin::Pin;
+
 /// A builder for creating a proof request to the network.
 pub struct NetworkProveBuilder<'a> {
     pub(crate) prover: &'a NetworkProver,
@@ -25,6 +29,8 @@ pub struct NetworkProveBuilder<'a> {
     pub(crate) strategy: FulfillmentStrategy,
     pub(crate) skip_simulation: bool,
     pub(crate) cycle_limit: Option<u64>,
+    pub(crate) gas_limit: Option<u64>,
+    pub(crate) tee_2fa: bool,
 }
 
 impl NetworkProveBuilder<'_> {
@@ -265,6 +271,64 @@ impl NetworkProveBuilder<'_> {
         self
     }
 
+    /// Sets the gas limit for the proof request.
+    ///
+    /// # Details
+    /// The gas limit determines the maximum amount of gas that the program should consume. By default,
+    /// the gas limit is determined by simulating the program locally. However, you can manually set it
+    /// if you know the exact gas count needed and want to skip the simulation step locally.
+    ///
+    /// The gas limit ensures that a prover on the network will stop generating a proof once the
+    /// gas limit is reached, which prevents denial of service attacks.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use sp1_sdk::{ProverClient, SP1Stdin, Prover};
+    ///
+    /// let elf = &[1, 2, 3];
+    /// let stdin = SP1Stdin::new();
+    ///
+    /// let client = ProverClient::builder().network().build();
+    /// let (pk, vk) = client.setup(elf);
+    /// let proof = client.prove(&pk, &stdin)
+    ///     .gas_limit(1_000_000) // Set 1M gas limit.
+    ///     .skip_simulation(true)  // Skip simulation since the limit is set manually.
+    ///     .run()
+    ///     .unwrap();
+    /// ```
+    #[must_use]
+    pub fn gas_limit(mut self, gas_limit: u64) -> Self {
+        self.gas_limit = Some(gas_limit);
+        self
+    }
+
+    /// Set the TEE proof type to use.
+    ///
+    /// # Details
+    /// This method sets the TEE proof type to use.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    ///
+    /// fn create_proof() {
+    ///     use sp1_sdk::{ProverClient, SP1Stdin, Prover};
+    ///
+    ///     let elf = &[1, 2, 3];
+    ///     let stdin = SP1Stdin::new();
+    ///
+    ///     let client = ProverClient::builder().network().build();
+    ///     let (pk, vk) = client.setup(elf);
+    ///     let builder = client.prove(&pk, &stdin)
+    ///         .tee_2fa()
+    ///         .run();
+    /// }
+    /// ```
+    #[must_use]
+    pub fn tee_2fa(mut self) -> Self {
+        self.tee_2fa = true;
+        self
+    }
+
     /// Request a proof from the prover network.
     ///
     /// # Details
@@ -312,10 +376,17 @@ impl NetworkProveBuilder<'_> {
     /// })
     /// ```
     pub async fn request_async(self) -> Result<B256> {
-        let Self { prover, mode, pk, stdin, timeout, strategy, skip_simulation, cycle_limit } =
-            self;
-        prover
-            .request_proof_impl(pk, &stdin, mode, strategy, timeout, skip_simulation, cycle_limit)
+        self.prover
+            .request_proof_impl(
+                self.pk,
+                &self.stdin,
+                self.mode,
+                self.strategy,
+                self.timeout,
+                self.skip_simulation,
+                self.cycle_limit,
+                self.gas_limit,
+            )
             .await
     }
 
@@ -359,20 +430,39 @@ impl NetworkProveBuilder<'_> {
     /// let proof = client.prove(&pk, &stdin)
     ///     .run_async();
     /// ```
-    pub async fn run_async(self) -> Result<SP1ProofWithPublicValues> {
-        let Self { prover, mode, pk, stdin, timeout, strategy, mut skip_simulation, cycle_limit } =
-            self;
-
+    pub async fn run_async(mut self) -> Result<SP1ProofWithPublicValues> {
         // Check for deprecated environment variable
         if let Ok(val) = std::env::var("SKIP_SIMULATION") {
             eprintln!(
                 "Warning: SKIP_SIMULATION environment variable is deprecated. Please use .skip_simulation() instead."
             );
-            skip_simulation = matches!(val.to_lowercase().as_str(), "true" | "1");
+            self.skip_simulation = matches!(val.to_lowercase().as_str(), "true" | "1");
         }
 
-        sp1_dump(&pk.elf, &stdin);
+        sp1_dump(&self.pk.elf, &self.stdin);
 
-        prover.prove_impl(pk, &stdin, mode, strategy, timeout, skip_simulation, cycle_limit).await
+        self.prover
+            .prove_impl(
+                self.pk,
+                &self.stdin,
+                self.mode,
+                self.strategy,
+                self.timeout,
+                self.skip_simulation,
+                self.cycle_limit,
+                self.gas_limit,
+                self.tee_2fa,
+            )
+            .await
+    }
+}
+
+impl<'a> IntoFuture for NetworkProveBuilder<'a> {
+    type Output = Result<SP1ProofWithPublicValues>;
+
+    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + Send + 'a>>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        Box::pin(self.run_async())
     }
 }
