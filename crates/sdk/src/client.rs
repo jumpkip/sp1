@@ -2,18 +2,16 @@
 //!
 //! A client for interacting with the prover for the SP1 RISC-V zkVM.
 
-use crate::cpu::builder::CpuProverBuilder;
-use crate::env::EnvProver;
+use crate::{cpu::builder::CpuProverBuilder, cuda::builder::CudaProverBuilder, env::EnvProver};
 
 #[cfg(feature = "network")]
-use crate::network::builder::NetworkProverBuilder;
-
-use crate::cuda::builder::CudaProverBuilder;
+use crate::network::{builder::NetworkProverBuilder, NetworkMode};
 
 /// An entrypoint for interacting with the prover for the SP1 RISC-V zkVM.
 ///
-/// IMPORTANT: `ProverClient` only needs to be initialized ONCE and can be reused for subsequent proving operations (can be shared across tasks by wrapping in an `Arc`).
-/// Note that the initial initialization may be slow as it loads necessary proving parameters and sets up the environment.
+/// IMPORTANT: `ProverClient` only needs to be initialized ONCE and can be reused for subsequent
+/// proving operations (can be shared across tasks by wrapping in an `Arc`). Note that the initial
+/// initialization may be slow as it loads necessary proving parameters and sets up the environment.
 pub struct ProverClient;
 
 impl ProverClient {
@@ -21,7 +19,7 @@ impl ProverClient {
     ///
     /// # Usage
     /// ```no_run
-    /// use sp1_sdk::{ProverClient, SP1Stdin, Prover};
+    /// use sp1_sdk::{Prover, ProverClient, SP1Stdin};
     ///
     /// std::env::set_var("SP1_PROVER", "network");
     /// std::env::set_var("NETWORK_PRIVATE_KEY", "...");
@@ -71,7 +69,7 @@ impl ProverClientBuilder {
     ///
     /// # Example
     /// ```no_run
-    /// use sp1_sdk::{ProverClient, SP1Stdin, Prover};
+    /// use sp1_sdk::{Prover, ProverClient, SP1Stdin};
     ///
     /// let elf = &[1, 2, 3];
     /// let stdin = SP1Stdin::new();
@@ -89,7 +87,7 @@ impl ProverClientBuilder {
     ///
     /// # Usage
     /// ```no_run
-    /// use sp1_sdk::{ProverClient, SP1Stdin, Prover};
+    /// use sp1_sdk::{Prover, ProverClient, SP1Stdin};
     ///
     /// let elf = &[1, 2, 3];
     /// let stdin = SP1Stdin::new();
@@ -107,7 +105,7 @@ impl ProverClientBuilder {
     ///
     /// # Example
     /// ```no_run
-    /// use sp1_sdk::{ProverClient, SP1Stdin, Prover};
+    /// use sp1_sdk::{Prover, ProverClient, SP1Stdin};
     ///
     /// let elf = &[1, 2, 3];
     /// let stdin = SP1Stdin::new();
@@ -121,22 +119,59 @@ impl ProverClientBuilder {
         CudaProverBuilder::default()
     }
 
-    /// Builds a [`NetworkProver`] specifically for proving on the network.
+    /// Builds a [`NetworkProver`] specifically for proving on the network using default settings.
     ///
-    /// # Example
+    /// Uses feature flag default (Reserved if reserved-capacity enabled, Mainnet otherwise).
+    ///
+    /// # Examples
     /// ```no_run
-    /// use sp1_sdk::{ProverClient, SP1Stdin, Prover};
+    /// use sp1_sdk::{Prover, ProverClient, SP1Stdin};
     ///
     /// let elf = &[1, 2, 3];
     /// let stdin = SP1Stdin::new();
     ///
     /// let prover = ProverClient::builder().network().build();
+    ///
     /// let (pk, vk) = prover.setup(elf);
     /// let proof = prover.prove(&pk, &stdin).compressed().run().unwrap();
     /// ```
     #[cfg(feature = "network")]
     #[must_use]
     pub fn network(&self) -> NetworkProverBuilder {
-        NetworkProverBuilder { private_key: None, rpc_url: None, tee_signers: None }
+        let network_mode = NetworkMode::default();
+
+        NetworkProverBuilder {
+            private_key: None,
+            signer: None,
+            rpc_url: None,
+            tee_signers: None,
+            network_mode: Some(network_mode),
+        }
+    }
+
+    /// Builds a [`NetworkProver`] specifically for proving on the network with a specified mode.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use sp1_sdk::{network::NetworkMode, Prover, ProverClient, SP1Stdin};
+    ///
+    /// let elf = &[1, 2, 3];
+    /// let stdin = SP1Stdin::new();
+    ///
+    /// let prover = ProverClient::builder().network_for(NetworkMode::Mainnet).build();
+    ///
+    /// let (pk, vk) = prover.setup(elf);
+    /// let proof = prover.prove(&pk, &stdin).compressed().run().unwrap();
+    /// ```
+    #[cfg(feature = "network")]
+    #[must_use]
+    pub fn network_for(&self, mode: NetworkMode) -> NetworkProverBuilder {
+        NetworkProverBuilder {
+            private_key: None,
+            signer: None,
+            rpc_url: None,
+            tee_signers: None,
+            network_mode: Some(mode),
+        }
     }
 }

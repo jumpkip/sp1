@@ -188,6 +188,7 @@ impl<V: Copy + 'static> IntoIterator for Registers<V> {
 }
 
 /// A page of memory.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Page<V>(VecMap<V>);
 
@@ -386,7 +387,8 @@ impl<'a, V: Copy> Entry<'a, V> {
         }
     }
 
-    /// Provides in-place mutable access to an occupied entry before any potential inserts into the map.
+    /// Provides in-place mutable access to an occupied entry before any potential inserts into the
+    /// map.
     pub fn and_modify<F: FnOnce(&mut V)>(mut self, f: F) -> Self {
         match &mut self {
             Entry::Vacant(_) => {}

@@ -106,7 +106,7 @@ impl MemoryInstructionsChip {
         cols.addr_aligned = F::from_canonical_u32(aligned_addr);
 
         // Populate the aa_least_sig_byte_decomp columns.
-        assert!(aligned_addr % 4 == 0);
+        assert!(aligned_addr.is_multiple_of(4));
         // Populate memory offsets.
         let addr_ls_two_bits = (memory_addr % WORD_SIZE as u32) as u8;
         cols.addr_ls_two_bits = F::from_canonical_u8(addr_ls_two_bits);
@@ -173,10 +173,10 @@ impl MemoryInstructionsChip {
 
             // Set the `mem_value_is_pos_not_x0` composite flag.
             cols.mem_value_is_pos_not_x0 = F::from_bool(
-                ((matches!(event.opcode, Opcode::LB | Opcode::LH)
-                    && (cols.most_sig_bit == F::zero()))
-                    || matches!(event.opcode, Opcode::LBU | Opcode::LHU | Opcode::LW))
-                    && !event.op_a_0,
+                ((matches!(event.opcode, Opcode::LB | Opcode::LH) &&
+                    (cols.most_sig_bit == F::zero())) ||
+                    matches!(event.opcode, Opcode::LBU | Opcode::LHU | Opcode::LW)) &&
+                    !event.op_a_0,
             )
         }
 

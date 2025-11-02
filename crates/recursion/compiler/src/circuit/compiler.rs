@@ -64,13 +64,13 @@ where
     pub fn read_vaddr_internal(&mut self, vaddr: usize, increment_mult: bool) -> Address<C::F> {
         use vec_map::Entry;
         match self.virtual_to_physical.entry(vaddr) {
-            Entry::Vacant(_) => panic!("expected entry: virtual_physical[{:?}]", vaddr),
+            Entry::Vacant(_) => panic!("expected entry: virtual_physical[{vaddr:?}]"),
             Entry::Occupied(entry) => {
                 if increment_mult {
                     // This is a read, so we increment the mult.
                     match self.addr_to_mult.get_mut(entry.get().as_usize()) {
                         Some(mult) => *mult += C::F::one(),
-                        None => panic!("expected entry: virtual_physical[{:?}]", vaddr),
+                        None => panic!("expected entry: virtual_physical[{vaddr:?}]"),
                     }
                 }
                 *entry.into_mut()
@@ -655,8 +655,8 @@ where
                     addrs: ExpReverseBitsIo { result: ref addr, .. },
                     mult,
                 }) => backfill((mult, addr)),
-                Instruction::HintBits(HintBitsInstr { output_addrs_mults, .. })
-                | Instruction::Hint(HintInstr { output_addrs_mults, .. }) => {
+                Instruction::HintBits(HintBitsInstr { output_addrs_mults, .. }) |
+                Instruction::Hint(HintInstr { output_addrs_mults, .. }) => {
                     output_addrs_mults.iter_mut().for_each(|(addr, mult)| backfill((mult, addr)));
                 }
                 Instruction::FriFold(instr) => {
@@ -688,9 +688,9 @@ where
                     output_y_addrs_mults.iter_mut().for_each(|(addr, mult)| backfill((mult, addr)));
                 }
                 // Instructions that do not write to memory.
-                Instruction::Mem(MemInstr { kind: MemAccessKind::Read, .. })
-                | Instruction::CommitPublicValues(_)
-                | Instruction::Print(_) => (),
+                Instruction::Mem(MemInstr { kind: MemAccessKind::Read, .. }) |
+                Instruction::CommitPublicValues(_) |
+                Instruction::Print(_) => (),
                 #[cfg(feature = "debug")]
                 Instruction::DebugBacktrace(_) => (),
             }
@@ -934,7 +934,7 @@ mod tests {
         let (pk, vk) = wide_machine.setup(&program);
         let result = run_test_machine(vec![record.clone()], wide_machine, pk, vk);
         if let Err(e) = result {
-            panic!("Verification failed: {:?}", e);
+            panic!("Verification failed: {e:?}");
         }
 
         // Run with the poseidon2 skinny chip.
@@ -944,7 +944,7 @@ mod tests {
         let (pk, vk) = skinny_machine.setup(&program);
         let result = run_test_machine(vec![record.clone()], skinny_machine, pk, vk);
         if let Err(e) = result {
-            panic!("Verification failed: {:?}", e);
+            panic!("Verification failed: {e:?}");
         }
     }
 
@@ -1004,7 +1004,7 @@ mod tests {
             F::from_canonical_u32(3),
         ];
         let expected = hasher.hash_iter(input);
-        println!("{:?}", expected);
+        println!("{expected:?}");
 
         let mut builder = AsmBuilder::<F, EF>::default();
         let input_felts: [Felt<_>; 26] = input.map(|x| builder.eval(x));
@@ -1176,8 +1176,8 @@ mod tests {
             runtime.record
         });
 
-        let input_str_fs = input_fs.into_iter().map(|elt| format!("{}", elt));
-        let input_str_efs = input_efs.into_iter().map(|elt| format!("{:?}", elt));
+        let input_str_fs = input_fs.into_iter().map(|elt| format!("{elt}"));
+        let input_str_efs = input_efs.into_iter().map(|elt| format!("{elt:?}"));
         let input_strs = input_str_fs.chain(input_str_efs);
 
         for (input_str, line) in zip(input_strs, buf.lines()) {

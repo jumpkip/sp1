@@ -57,13 +57,14 @@ impl<T: Add<Output = T> + Mul<Output = T> + AbstractField> Mul for BinomialExten
 
     fn mul(self, rhs: Self) -> Self::Output {
         let mut result = [T::zero(), T::zero(), T::zero(), T::zero()];
+        // This value is specific for BabyBear prime's extension `F_p[x]/(x^4 - 11)`.
         let w = T::from_canonical_u32(11);
 
         for i in 0..D {
             for j in 0..D {
                 if i + j >= D {
-                    result[i + j - D] = result[i + j - D].clone()
-                        + w.clone() * self.0[i].clone() * rhs.0[j].clone();
+                    result[i + j - D] = result[i + j - D].clone() +
+                        w.clone() * self.0[i].clone() * rhs.0[j].clone();
                 } else {
                     result[i + j] = result[i + j].clone() + self.0[i].clone() * rhs.0[j].clone();
                 }

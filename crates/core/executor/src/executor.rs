@@ -83,8 +83,9 @@ pub struct Executor<'a> {
     /// checkpoints.
     pub memory_checkpoint: Memory<Option<MemoryRecord>>,
 
-    /// Memory addresses that were initialized in this batch of shards. Used to minimize the size of
-    /// checkpoints. The value stored is whether or not it had a value at the beginning of the batch.
+    /// Memory addresses that were initialized in this batch of shards. Used to minimize the size
+    /// of checkpoints. The value stored is whether or not it had a value at the beginning of
+    /// the batch.
     pub uninitialized_memory_checkpoint: Memory<bool>,
 
     /// Report of the program execution.
@@ -263,13 +264,14 @@ impl<'a> Executor<'a> {
 
     /// WARNING: This function's API is subject to change without a major version bump.
     ///
-    /// If the feature `"profiling"` is enabled, this sets up the profiler. Otherwise, it does nothing.
-    /// The argument `elf_bytes` must describe the same program as `self.program`.
+    /// If the feature `"profiling"` is enabled, this sets up the profiler. Otherwise, it does
+    /// nothing. The argument `elf_bytes` must describe the same program as `self.program`.
     ///
     /// The profiler is configured by the following environment variables:
     ///
     /// - `TRACE_FILE`: writes Gecko traces to this path. If unspecified, the profiler is disabled.
-    /// - `TRACE_SAMPLE_RATE`: The period between clock cycles where samples are taken. Defaults to 1.
+    /// - `TRACE_SAMPLE_RATE`: The period between clock cycles where samples are taken. Defaults to
+    ///   1.
     #[inline]
     #[allow(unused_variables)]
     pub fn maybe_setup_profiler(&mut self, elf_bytes: &[u8]) {
@@ -501,7 +503,7 @@ impl<'a> Executor<'a> {
     ) -> MemoryReadRecord {
         // Check that the memory address is within the babybear field and not within the registers'
         // address space.  Also check that the address is aligned.
-        if addr % 4 != 0 || addr <= Register::X31 as u32 || addr >= BABYBEAR_PRIME {
+        if !addr.is_multiple_of(4) || addr <= Register::X31 as u32 || addr >= BABYBEAR_PRIME {
             panic!("Invalid memory access: addr={addr}");
         }
 
@@ -544,11 +546,11 @@ impl<'a> Executor<'a> {
         };
 
         // We update the local memory counter in two cases:
-        //  1. This is the first time the address is touched, this corresponds to the
-        //     condition record.shard != shard.
+        //  1. This is the first time the address is touched, this corresponds to the condition
+        //     record.shard != shard.
         //  2. The address is being accessed in a syscall. In this case, we need to send it. We use
-        //     local_memory_access to detect this. *WARNING*: This means that we are counting
-        //     on the .is_some() condition to be true only in the SyscallContext.
+        //     local_memory_access to detect this. *WARNING*: This means that we are counting on the
+        //     .is_some() condition to be true only in the SyscallContext.
         if !self.unconstrained && (record.shard != shard || local_memory_access.is_some()) {
             self.local_counts.local_mem += 1;
         }
@@ -734,7 +736,7 @@ impl<'a> Executor<'a> {
     ) -> MemoryWriteRecord {
         // Check that the memory address is within the babybear field and not within the registers'
         // address space.  Also check that the address is aligned.
-        if addr % 4 != 0 || addr <= Register::X31 as u32 || addr >= BABYBEAR_PRIME {
+        if !addr.is_multiple_of(4) || addr <= Register::X31 as u32 || addr >= BABYBEAR_PRIME {
             panic!("Invalid memory access: addr={addr}");
         }
 
@@ -776,11 +778,11 @@ impl<'a> Executor<'a> {
         };
 
         // We update the local memory counter in two cases:
-        //  1. This is the first time the address is touched, this corresponds to the
-        //     condition record.shard != shard.
+        //  1. This is the first time the address is touched, this corresponds to the condition
+        //     record.shard != shard.
         //  2. The address is being accessed in a syscall. In this case, we need to send it. We use
-        //     local_memory_access to detect this. *WARNING*: This means that we are counting
-        //     on the .is_some() condition to be true only in the SyscallContext.
+        //     local_memory_access to detect this. *WARNING*: This means that we are counting on the
+        //     .is_some() condition to be true only in the SyscallContext.
         if !self.unconstrained && (record.shard != shard || local_memory_access.is_some()) {
             self.local_counts.local_mem += 1;
         }
@@ -1064,8 +1066,8 @@ impl<'a> Executor<'a> {
 
         if instruction.is_alu_instruction() {
             self.emit_alu_event(instruction.opcode, a, b, c, op_a_0);
-        } else if instruction.is_memory_load_instruction()
-            || instruction.is_memory_store_instruction()
+        } else if instruction.is_memory_load_instruction() ||
+            instruction.is_memory_store_instruction()
         {
             self.emit_mem_instr_event(instruction.opcode, a, b, c, op_a_0);
         } else if instruction.is_branch_instruction() {
@@ -1223,9 +1225,10 @@ impl<'a> Executor<'a> {
         };
 
         // If op_a_0 is None, then we assume it is not register 0.  Note that this will happen
-        // for syscall events that are created within the precompiles' execute function.  Those events will be
-        // added to precompile tables, which wouldn't use the op_a_0 field.  Note that we can't make
-        // the op_a_0 field an Option<bool> in SyscallEvent because of the cbindgen.
+        // for syscall events that are created within the precompiles' execute function.  Those
+        // events will be added to precompile tables, which wouldn't use the op_a_0 field.
+        // Note that we can't make the op_a_0 field an Option<bool> in SyscallEvent because
+        // of the cbindgen.
         let op_a_0 = op_a_0.unwrap_or(false);
 
         SyscallEvent {
@@ -1406,7 +1409,7 @@ impl<'a> Executor<'a> {
                 self.memory_accesses,
                 exit_code,
             );
-        };
+        }
 
         // Update the program counter.
         self.state.pc = next_pc;
@@ -1593,8 +1596,8 @@ impl<'a> Executor<'a> {
         // which is not permitted in unconstrained mode. This will result in
         // non-zero memory interactions when generating a proof.
 
-        if self.unconstrained
-            && (syscall != SyscallCode::EXIT_UNCONSTRAINED && syscall != SyscallCode::WRITE)
+        if self.unconstrained &&
+            (syscall != SyscallCode::EXIT_UNCONSTRAINED && syscall != SyscallCode::WRITE)
         {
             return Err(ExecutionError::InvalidSyscallUsage(syscall_id as u64));
         }
@@ -1715,7 +1718,7 @@ impl<'a> Executor<'a> {
             //
             // If we're close to not fitting, early stop the shard to ensure we don't OOM.
             let mut shape_match_found = true;
-            if self.state.global_clk % self.shape_check_frequency == 0 {
+            if self.state.global_clk.is_multiple_of(self.shape_check_frequency) {
                 // Estimate the number of events in the trace.
                 Self::estimate_riscv_event_counts(
                     &mut self.event_counts,
@@ -1741,7 +1744,11 @@ impl<'a> Executor<'a> {
                 // Check if we're too "close" to a maximal shape.
                 else if let Some(maximal_shapes) = &self.maximal_shapes {
                     let distance = |threshold: usize, count: usize| {
-                        (count != 0).then(|| threshold - count).unwrap_or(usize::MAX)
+                        if count != 0 {
+                            threshold - count
+                        } else {
+                            usize::MAX
+                        }
                     };
 
                     shape_match_found = false;
@@ -1807,9 +1814,9 @@ impl<'a> Executor<'a> {
             }
         }
 
-        let done = self.state.pc == 0
-            || self.state.pc.wrapping_sub(self.program.pc_base)
-                >= (self.program.instructions.len() * 4) as u32;
+        let done = self.state.pc == 0 ||
+            self.state.pc.wrapping_sub(self.program.pc_base) >=
+                (self.program.instructions.len() * 4) as u32;
         if done && self.unconstrained {
             tracing::error!("program ended in unconstrained mode at clk {}", self.state.global_clk);
             return Err(ExecutionError::EndInUnconstrained());
@@ -1947,6 +1954,8 @@ impl<'a> Executor<'a> {
         for (&addr, value) in &self.program.memory_image {
             self.state.memory.insert(addr, MemoryRecord { value: *value, shard: 0, timestamp: 0 });
         }
+        // Insert the memory record for 0.
+        self.state.memory.insert(0, MemoryRecord { value: 0, shard: 0, timestamp: 0 });
     }
 
     /// Executes the program without tracing and without emitting events.
@@ -2135,7 +2144,8 @@ impl<'a> Executor<'a> {
                 1 + (1..32).filter(|&r| self.state.memory.registers.get(r).is_some()).count();
             let total_mem = touched_reg_ct + self.state.memory.page_table.exact_len();
             // The memory_image is already initialized in the MemoryProgram chip
-            // so we subtract it off. It is initialized in the executor in the `initialize` function.
+            // so we subtract it off. It is initialized in the executor in the `initialize`
+            // function.
             estimator.memory_global_init_events = total_mem
                 .checked_sub(self.record.program.memory_image.len())
                 .expect("program memory image should be accounted for in memory exact len")
@@ -2143,9 +2153,9 @@ impl<'a> Executor<'a> {
             estimator.memory_global_finalize_events = total_mem as u64;
         }
 
-        if self.emit_global_memory_events
-            && (self.executor_mode == ExecutorMode::Trace
-                || self.executor_mode == ExecutorMode::Checkpoint)
+        if self.emit_global_memory_events &&
+            (self.executor_mode == ExecutorMode::Trace ||
+                self.executor_mode == ExecutorMode::Checkpoint)
         {
             // SECTION: Set up all MemoryInitializeFinalizeEvents needed for memory argument.
             let memory_finalize_events = &mut self.record.global_memory_finalize_events;
@@ -2157,7 +2167,7 @@ impl<'a> Executor<'a> {
 
             let addr_0_final_record = match addr_0_record {
                 Some(record) => record,
-                None => &MemoryRecord { value: 0, shard: 0, timestamp: 1 },
+                None => &MemoryRecord { value: 0, shard: 0, timestamp: 0 },
             };
             memory_finalize_events
                 .push(MemoryInitializeFinalizeEvent::finalize_from_record(0, addr_0_final_record));
@@ -2165,47 +2175,45 @@ impl<'a> Executor<'a> {
             let memory_initialize_events = &mut self.record.global_memory_initialize_events;
             memory_initialize_events
                 .reserve_exact(self.state.memory.page_table.estimate_len() + 32);
-            let addr_0_initialize_event =
-                MemoryInitializeFinalizeEvent::initialize(0, 0, addr_0_record.is_some());
+            let addr_0_initialize_event = MemoryInitializeFinalizeEvent::initialize(0, 0);
             memory_initialize_events.push(addr_0_initialize_event);
 
             // Count the number of touched memory addresses manually, since `PagedMemory` doesn't
             // already know its length.
-            self.report.touched_memory_addresses = 0;
+            if self.print_report {
+                self.report.touched_memory_addresses = 0;
+            }
             for addr in 1..32 {
                 let record = self.state.memory.registers.get(addr);
-                if record.is_some() {
-                    self.report.touched_memory_addresses += 1;
-
-                    // Program memory is initialized in the MemoryProgram chip and doesn't require any
-                    // events, so we only send init events for other memory addresses.
+                if let Some(record) = record {
+                    if self.print_report {
+                        self.report.touched_memory_addresses += 1;
+                    }
+                    // Program memory is initialized in the MemoryProgram chip and doesn't require
+                    // any events, so we only send init events for other memory
+                    // addresses.
                     if !self.record.program.memory_image.contains_key(&addr) {
                         let initial_value =
                             self.state.uninitialized_memory.registers.get(addr).unwrap_or(&0);
-                        memory_initialize_events.push(MemoryInitializeFinalizeEvent::initialize(
-                            addr,
-                            *initial_value,
-                            true,
-                        ));
+                        memory_initialize_events
+                            .push(MemoryInitializeFinalizeEvent::initialize(addr, *initial_value));
                     }
 
-                    let record = *record.unwrap();
                     memory_finalize_events
-                        .push(MemoryInitializeFinalizeEvent::finalize_from_record(addr, &record));
+                        .push(MemoryInitializeFinalizeEvent::finalize_from_record(addr, record));
                 }
             }
             for addr in self.state.memory.page_table.keys() {
-                self.report.touched_memory_addresses += 1;
+                if self.print_report {
+                    self.report.touched_memory_addresses += 1;
+                }
 
                 // Program memory is initialized in the MemoryProgram chip and doesn't require any
                 // events, so we only send init events for other memory addresses.
                 if !self.record.program.memory_image.contains_key(&addr) {
                     let initial_value = self.state.uninitialized_memory.get(addr).unwrap_or(&0);
-                    memory_initialize_events.push(MemoryInitializeFinalizeEvent::initialize(
-                        addr,
-                        *initial_value,
-                        true,
-                    ));
+                    memory_initialize_events
+                        .push(MemoryInitializeFinalizeEvent::initialize(addr, *initial_value));
                 }
 
                 let record = *self.state.memory.get(addr).unwrap();
@@ -2236,10 +2244,10 @@ impl<'a> Executor<'a> {
         event_counts[RiscvAirId::AddSub] = opcode_counts[Opcode::ADD] + opcode_counts[Opcode::SUB];
 
         // Compute the number of events in the mul chip.
-        event_counts[RiscvAirId::Mul] = opcode_counts[Opcode::MUL]
-            + opcode_counts[Opcode::MULH]
-            + opcode_counts[Opcode::MULHU]
-            + opcode_counts[Opcode::MULHSU];
+        event_counts[RiscvAirId::Mul] = opcode_counts[Opcode::MUL] +
+            opcode_counts[Opcode::MULH] +
+            opcode_counts[Opcode::MULHU] +
+            opcode_counts[Opcode::MULHSU];
 
         // Compute the number of events in the bitwise chip.
         event_counts[RiscvAirId::Bitwise] =
@@ -2253,10 +2261,10 @@ impl<'a> Executor<'a> {
             opcode_counts[Opcode::SRL] + opcode_counts[Opcode::SRA];
 
         // Compute the number of events in the divrem chip.
-        event_counts[RiscvAirId::DivRem] = opcode_counts[Opcode::DIV]
-            + opcode_counts[Opcode::DIVU]
-            + opcode_counts[Opcode::REM]
-            + opcode_counts[Opcode::REMU];
+        event_counts[RiscvAirId::DivRem] = opcode_counts[Opcode::DIV] +
+            opcode_counts[Opcode::DIVU] +
+            opcode_counts[Opcode::REM] +
+            opcode_counts[Opcode::REMU];
 
         // Compute the number of events in the lt chip.
         event_counts[RiscvAirId::Lt] = opcode_counts[Opcode::SLT] + opcode_counts[Opcode::SLTU];
@@ -2266,32 +2274,32 @@ impl<'a> Executor<'a> {
             touched_addresses.div_ceil(NUM_LOCAL_MEMORY_ENTRIES_PER_ROW_EXEC as u64);
 
         // Compute the number of events in the branch chip.
-        event_counts[RiscvAirId::Branch] = opcode_counts[Opcode::BEQ]
-            + opcode_counts[Opcode::BNE]
-            + opcode_counts[Opcode::BLT]
-            + opcode_counts[Opcode::BGE]
-            + opcode_counts[Opcode::BLTU]
-            + opcode_counts[Opcode::BGEU];
+        event_counts[RiscvAirId::Branch] = opcode_counts[Opcode::BEQ] +
+            opcode_counts[Opcode::BNE] +
+            opcode_counts[Opcode::BLT] +
+            opcode_counts[Opcode::BGE] +
+            opcode_counts[Opcode::BLTU] +
+            opcode_counts[Opcode::BGEU];
 
         // Compute the number of events in the jump chip.
         event_counts[RiscvAirId::Jump] = opcode_counts[Opcode::JAL] + opcode_counts[Opcode::JALR];
 
         // Compute the number of events in the auipc chip.
-        event_counts[RiscvAirId::Auipc] = opcode_counts[Opcode::AUIPC]
-            + opcode_counts[Opcode::UNIMP]
-            + opcode_counts[Opcode::EBREAK];
+        event_counts[RiscvAirId::Auipc] = opcode_counts[Opcode::AUIPC] +
+            opcode_counts[Opcode::UNIMP] +
+            opcode_counts[Opcode::EBREAK];
 
         // Compute the number of events in the memory instruction chip.
-        event_counts[RiscvAirId::MemoryInstrs] = opcode_counts[Opcode::LB]
-            + opcode_counts[Opcode::LH]
-            + opcode_counts[Opcode::LW]
-            + opcode_counts[Opcode::LBU]
-            + opcode_counts[Opcode::LHU]
-            + opcode_counts[Opcode::SB]
-            + opcode_counts[Opcode::SH]
-            + opcode_counts[Opcode::SW];
+        event_counts[RiscvAirId::MemoryInstrs] = opcode_counts[Opcode::LB] +
+            opcode_counts[Opcode::LH] +
+            opcode_counts[Opcode::LW] +
+            opcode_counts[Opcode::LBU] +
+            opcode_counts[Opcode::LHU] +
+            opcode_counts[Opcode::SB] +
+            opcode_counts[Opcode::SH] +
+            opcode_counts[Opcode::SW];
 
-        // Compute the number of events in the syscall instruction chip.
+        // Compute the number of events in the syscall instruction chip.b
         event_counts[RiscvAirId::SyscallInstrs] = opcode_counts[Opcode::ECALL];
 
         // Compute the number of events in the syscall core chip.
@@ -2318,7 +2326,7 @@ impl<'a> Executor<'a> {
             }
         }
 
-        if !self.unconstrained && self.state.global_clk % 10_000_000 == 0 {
+        if !self.unconstrained && self.state.global_clk.is_multiple_of(10_000_000) {
             tracing::info!("clk = {} pc = 0x{:x?}", self.state.global_clk, self.state.pc);
         }
     }

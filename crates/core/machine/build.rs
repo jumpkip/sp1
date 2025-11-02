@@ -1,3 +1,7 @@
+/// The library name, used for the static library archive and the headers.
+/// Should be chosen as to not conflict with other library/header names.
+const LIB_NAME: &str = "sp1-core-machine-sys";
+
 fn main() {
     if std::env::var("DOCS_RS").is_ok() {
         return;
@@ -5,6 +9,16 @@ fn main() {
 
     #[cfg(feature = "sys")]
     sys::build_ffi();
+
+    #[cfg(not(feature = "sys"))]
+    {
+        // Build an empty library.
+        use std::{env, path::PathBuf};
+        let source = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("empty.cpp");
+        let mut cc_builder = cc::Build::new();
+        cc_builder.files(&[source]);
+        cc_builder.compile(LIB_NAME);
+    }
 }
 
 #[cfg(feature = "sys")]
@@ -16,9 +30,7 @@ mod sys {
 
     use pathdiff::diff_paths;
 
-    /// The library name, used for the static library archive and the headers.
-    /// Should be chosen as to not conflict with other library/header names.
-    const LIB_NAME: &str = "sp1-core-machine-sys";
+    use super::LIB_NAME;
 
     /// The name of all include directories involved, used to find and output header files.
     const INCLUDE_DIRNAME: &str = "include";
@@ -133,11 +145,13 @@ mod sys {
                     }
                 }
             }
-            Err(cbindgen::Error::ParseSyntaxError { .. }) => {} // Ignore parse errors so rust-analyzer can run.
-            Err(e) => panic!("{:?}", e),
+            Err(cbindgen::Error::ParseSyntaxError { .. }) => {} /* Ignore parse errors so */
+            // rust-analyzer can run.
+            Err(e) => panic!("{e:?}"),
         }
 
-        // Copy the headers to the include directory and symlink them to the fixed include directory.
+        // Copy the headers to the include directory and symlink them to the fixed include
+        // directory.
         for header in &headers {
             // Get the path of the header relative to the source include directory.
             let relpath = diff_paths(header, &source_include_dir).unwrap();

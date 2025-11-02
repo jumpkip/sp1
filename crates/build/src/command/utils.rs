@@ -51,15 +51,30 @@ pub(crate) fn get_program_build_args(args: &BuildArgs) -> Vec<String> {
 
 /// Rust flags for compilation of C libraries.
 pub(crate) fn get_rust_compiler_flags(args: &BuildArgs, version: &semver::Version) -> String {
-    // Note: as of 1.81.0, the `-C passes=loweratomic` flag is deprecated, because of a change to llvm.
+    // Note: as of 1.81.0, the `-C passes=loweratomic` flag is deprecated, because of a change to
+    // llvm.
     let atomic_lower_pass = if version > &semver::Version::new(1, 81, 0) {
         "passes=lower-atomic"
     } else {
         "passes=loweratomic"
     };
 
-    let rust_flags =
-        ["-C", atomic_lower_pass, "-C", "link-arg=-Ttext=0x00200800", "-C", "panic=abort"];
+    let rust_flags = [
+        "-C",
+        atomic_lower_pass,
+        "-C",
+        "link-arg=-Ttext=0x00201000",
+        "-C",
+        "link-arg=--image-base=0x00200800",
+        "-C",
+        "panic=abort",
+        "--cfg",
+        "getrandom_backend=\"custom\"",
+        "-C",
+        "llvm-args=-misched-prera-direction=bottomup",
+        "-C",
+        "llvm-args=-misched-postra-direction=bottomup",
+    ];
     let rust_flags: Vec<_> =
         rust_flags.into_iter().chain(args.rustflags.iter().map(String::as_str)).collect();
     rust_flags.join("\x1f")

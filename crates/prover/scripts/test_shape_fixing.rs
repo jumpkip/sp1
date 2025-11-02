@@ -47,12 +47,12 @@ fn test_shape_fixing(
         for mut record in records {
             let _ = record.defer();
             let heights = RiscvAir::<BabyBear>::core_heights(&record);
-            println!("heights: {:?}", heights);
+            println!("heights: {heights:?}");
 
             shape_config.fix_shape(&mut record).unwrap();
 
-            if record.contains_cpu()
-                && record.shape.unwrap().height(&RiscvAirId::Cpu).unwrap() > opts.shard_size
+            if record.contains_cpu() &&
+                record.shape.unwrap().height(&RiscvAirId::Cpu).unwrap() > opts.shard_size
             {
                 panic!("something went wrong")
             }
@@ -83,7 +83,7 @@ fn main() {
             .args([
                 "s3",
                 "cp",
-                &format!("s3://sp1-testing-suite/{}/program.bin", s3_path),
+                &format!("s3://sp1-testing-suite/{s3_path}/program.bin"),
                 "program.bin",
             ])
             .status()
@@ -94,12 +94,7 @@ fn main() {
 
         // Download stdin.bin.
         let status = std::process::Command::new("aws")
-            .args([
-                "s3",
-                "cp",
-                &format!("s3://sp1-testing-suite/{}/stdin.bin", s3_path),
-                "stdin.bin",
-            ])
+            .args(["s3", "cp", &format!("s3://sp1-testing-suite/{s3_path}/stdin.bin"), "stdin.bin"])
             .status()
             .expect("Failed to execute aws s3 cp command for stdin.bin");
         if !status.success() {

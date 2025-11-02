@@ -265,8 +265,8 @@ impl<V: Copy, P: FieldParameters> FieldOpCols<V, P> {
         let is_mul: AB::Expr = is_mul.into();
         let is_div: AB::Expr = is_div.into();
 
-        let p_result = p_res_param.clone() * (is_add.clone() + is_mul.clone())
-            + p_a_param.clone() * (is_sub.clone() + is_div.clone());
+        let p_result = p_res_param.clone() * (is_add.clone() + is_mul.clone()) +
+            p_a_param.clone() * (is_sub.clone() + is_div.clone());
 
         let p_add = p_a_param.clone() + p_b.clone();
         let p_sub = p_res_param.clone() + p_b.clone();
@@ -389,8 +389,10 @@ mod tests {
 
     use super::{FieldOpCols, FieldOperation, Limbs};
 
-    use crate::utils::pad_to_power_of_two;
-    use crate::utils::uni_stark::{uni_stark_prove, uni_stark_verify};
+    use crate::utils::{
+        pad_to_power_of_two,
+        uni_stark::{uni_stark_prove, uni_stark_verify},
+    };
     use core::borrow::{Borrow, BorrowMut};
     use num::bigint::RandBigInt;
     use p3_air::Air;
@@ -508,7 +510,7 @@ mod tests {
     #[test]
     fn generate_trace() {
         for op in [FieldOperation::Add, FieldOperation::Mul, FieldOperation::Sub].iter() {
-            println!("op: {:?}", op);
+            println!("op: {op:?}");
             let chip: FieldOpChip<Ed25519BaseField> = FieldOpChip::new(*op);
             let shard = ExecutionRecord::default();
             let _: RowMajorMatrix<BabyBear> =
@@ -525,7 +527,7 @@ mod tests {
             [FieldOperation::Add, FieldOperation::Sub, FieldOperation::Mul, FieldOperation::Div]
                 .iter()
         {
-            println!("op: {:?}", op);
+            println!("op: {op:?}");
 
             let mut challenger = config.challenger();
 
